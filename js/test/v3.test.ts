@@ -1,13 +1,14 @@
 import fs from "fs";
 import assert from "node:assert";
 import { afterEach, beforeEach, describe, it, test } from "node:test";
+import "fake-indexeddb/auto";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import 'fake-indexeddb/auto'
 
 import {
   BufferPosition,
   Entry,
+  IndexedDBSource,
   PMTiles,
   RangeResponse,
   SharedPromiseCache,
@@ -19,7 +20,6 @@ import {
   tileIdToZxy,
   tileTypeExt,
   zxyToTileId,
-  IndexedDBSource
 } from "../src/index";
 
 class MockServer {
@@ -438,23 +438,22 @@ describe("user agent", async () => {
   });
 });
 
-
 describe("offline pmtiles", async () => {
-  const tableName = "offline-pmtiles"
-  const dbname = "offline-pmtiles"
+  const tableName = "offline-pmtiles";
+  const dbname = "offline-pmtiles";
 
   const db = await IndexedDBSource.openDb(dbname, tableName);
 
-  const filename = "example.pmtile"
+  const filename = "example.pmtile";
 
-  const serverResponse = await fetch(`http://localhost:1337/${filename}`)
+  const serverResponse = await fetch(`http://localhost:1337/${filename}`);
   const buffer = await serverResponse.arrayBuffer();
-  const blob = new Blob([buffer], {"type": "application/octet-stream"})
-  const offlineSource = new IndexedDBSource(db, {filename, blob}, tableName)
+  const blob = new Blob([buffer], { type: "application/octet-stream" });
+  const offlineSource = new IndexedDBSource(db, { filename, blob }, tableName);
 
   const p = new PMTiles(offlineSource);
 
   const tile = await p.getZxy(0, 0, 0);
 
-  assert.notEqual(tile, undefined)
-})
+  assert.notEqual(tile, undefined);
+});

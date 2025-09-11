@@ -474,34 +474,40 @@ export function getUint64(v: DataView, offset: number): number {
   return wh * 2 ** 32 + wl;
 }
 
-
 /**
  * Implements offline source for PMTiles, to enable usage in PWAs
  * by saving PMTiles files as Blobs in IndexedDB
  */
 
 export interface OfflineSource extends Source {
-	setSource(source: PMTilesIndexedDBRow): Promise<void>;
+  setSource(source: PMTilesIndexedDBRow): Promise<void>;
 }
 
 export interface PMTilesIndexedDBRow {
-  filename: string
-  blob: Blob
+  filename: string;
+  blob: Blob;
 }
 
 export class IndexedDBSource implements OfflineSource {
-  public db: IDBDatabase
-	public filename: string;
+  public db: IDBDatabase;
+  public filename: string;
   public tablename: string;
-	constructor(db: IDBDatabase, source: PMTilesIndexedDBRow, tablename = "offline-pmtiles") {
-		this.filename = source.filename
-		this.db = db;
+  constructor(
+    db: IDBDatabase,
+    source: PMTilesIndexedDBRow,
+    tablename = "offline-pmtiles"
+  ) {
+    this.filename = source.filename;
+    this.db = db;
     this.tablename = tablename;
     // this is async - but we don't wait for it to complete. possible race conditions here.
     this.setSource(source);
-	}
+  }
 
-  public static openDb(dbname: string, tablename: string ): Promise<IDBDatabase> {
+  public static openDb(
+    dbname: string,
+    tablename: string
+  ): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(dbname, 1);
 
@@ -509,7 +515,7 @@ export class IndexedDBSource implements OfflineSource {
         const db = (event.target as IDBOpenDBRequest).result;
         // Create object store with keyPath "filename" if it doesn't exist
         if (!db.objectStoreNames.contains(tablename)) {
-          db.createObjectStore(tablename, { keyPath: 'filename' });
+          db.createObjectStore(tablename, { keyPath: "filename" });
         }
       };
 
@@ -523,47 +529,56 @@ export class IndexedDBSource implements OfflineSource {
     });
   }
 
-  public getFromStore<T>(store: IDBObjectStore, key: IDBValidKey): Promise<T | undefined> {
+  public getFromStore<T>(
+    store: IDBObjectStore,
+    key: IDBValidKey
+  ): Promise<T | undefined> {
     return new Promise((resolve, reject) => {
       const request = store.get(key);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => {
-        console.info(`error retrieving ${key} from ${this.tablename} in IndexedDB.`, request.error);
+        console.info(
+          `error retrieving ${key} from ${this.tablename} in IndexedDB.`,
+          request.error
+        );
         resolve(undefined);
       };
     });
   }
 
-
   async getAndSliceBlob(start: number, end: number): Promise<Blob | undefined> {
     const tx = this.db.transaction(this.tablename);
     const store = tx.objectStore(this.tablename);
-    const res = await this.getFromStore<PMTilesIndexedDBRow | undefined>(store, this.filename)
+    const res = await this.getFromStore<PMTilesIndexedDBRow | undefined>(
+      store,
+      this.filename
+    );
     if (res?.blob) {
-      return res.blob.slice(start, end)
+      return res.blob.slice(start, end);
     }
     return undefined;
   }
-  
-	async setSource(source: PMTilesIndexedDBRow): Promise<void> {
-		console.log("setting PMTiles Offline source...", {filename: source.filename});
+
+  async setSource(source: PMTilesIndexedDBRow): Promise<void> {
+    console.log("setting PMTiles Offline source...", {
+      filename: source.filename,
+    });
     const tx = this.db.transaction(this.tablename);
     const store = tx.objectStore(this.tablename);
     return await new Promise((resolve, reject) => {
       const request = store.put(source);
       request.onsuccess = () => resolve(undefined);
       request.onerror = () => reject(request.error);
-    })
-	}
+    });
+  }
 
-	async getBytes(
-		offset: number,
-		length: number,
-		signal?: AbortSignal,
-		etag?: string,
-	): Promise<RangeResponse> {
-
-    const sliced = await this.getAndSliceBlob(offset, length)
+  async getBytes(
+    offset: number,
+    length: number,
+    signal?: AbortSignal,
+    etag?: string
+  ): Promise<RangeResponse> {
+    const sliced = await this.getAndSliceBlob(offset, length);
     const buffer = await sliced?.arrayBuffer();
     if (buffer !== undefined) {
       console.log({ buffer });
@@ -572,12 +587,12 @@ export class IndexedDBSource implements OfflineSource {
       };
     }
 
-		return { data: new ArrayBuffer() };
-	}
+    return { data: new ArrayBuffer() };
+  }
 
-	getKey(): string {
-		return `${this.filename}`;
-	}
+  getKey(): string {
+    return `${this.filename}`;
+  }
 }
 
 /**
